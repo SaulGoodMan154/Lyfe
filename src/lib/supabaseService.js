@@ -401,18 +401,14 @@ export const createComplaint = async (complaintData) => {
 };
 
 export const updateComplaintStatus = async (complaintId, status) => {
-    const updates = { status };
-    if (status === 'resolved') {
-        updates.resolved_at = new Date().toISOString();
-    }
-    const { data, error } = await supabase
-        .from('complaints')
-        .update(updates)
-        .eq('id', complaintId)
-        .select()
-        .single();
+    const { data, error } = await supabase.rpc('update_complaint_status_for_landlord', {
+        p_complaint_id: complaintId,
+        p_status: status,
+    });
     if (error) throw error;
-    return data;
+    // RPC returns array; pick first row and merge resolved_at
+    const row = data?.[0];
+    return { status: row?.status, resolved_at: row?.resolved_at ?? null };
 };
 
 // ============================================================

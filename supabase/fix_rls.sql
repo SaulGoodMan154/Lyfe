@@ -447,3 +447,22 @@ CREATE POLICY "Tenants can insert complaints"
   ON complaints FOR INSERT WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE user_id = auth.uid()));
 CREATE POLICY "Landlords can update complaint status"
   ON complaints FOR UPDATE USING (property_id IN (SELECT get_landlord_property_ids(auth.uid())));
+
+-- ── 17. RPC: Update complaint status (SECURITY DEFINER — bypasses RLS) ──
+CREATE OR REPLACE FUNCTION update_complaint_status_for_landlord(
+  p_complaint_id UUID,
+  p_status TEXT  -- 'open', 'in_progress', 'resolved'
+) RETURNS TABLE(
+  id UUID, status TEXT, resolved_at TIMESTAMPTZ
+) AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE complaints
+  SET
+    status = p_status,
+    resolved_at = CASE WHEN p_status = 'resolved' THEN NOW() ELSE NULL END
+  WHERE complaints.id = p_complaint_id
+  RETURNING complaints.id, complaints.status::TEXT, complaints.resolved_at;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
