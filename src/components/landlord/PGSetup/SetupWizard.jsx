@@ -85,11 +85,13 @@ export default function PGSetupWizard() {
         try {
             for (const pg of formData.pgs) {
                 // Flatten all rooms across all floors
-                const rooms = pg.floors.flatMap(floor =>
+                // Use floorIdx+1 as guaranteed fallback so `floor` is never null
+                const rooms = pg.floors.flatMap((floor, floorIdx) =>
                     floor.rooms.map(room => ({
                         room_number: room.roomNumber,
-                        floor: floor.floorNumber,
+                        floor: floor.floorNumber ?? (floorIdx + 1),
                         rent_amount: parseFloat(room.rentAmount) || 0,
+                        occupancy_type: room.occupancyType || 1,
                     }))
                 );
 
@@ -97,7 +99,7 @@ export default function PGSetupWizard() {
                 await createPGSetup({
                     name: pg.name,
                     address: pg.address || pg.name,
-                    totalFloors: parseInt(pg.totalFloors),
+                    totalFloors: parseInt(pg.totalFloors) || pg.floors.length,
                     landlordId: user.id,
                     rooms,
                 });
